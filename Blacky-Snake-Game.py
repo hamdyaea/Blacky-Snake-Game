@@ -2,15 +2,8 @@
  
 # Developer : Hamdy Abou El Anein
 import pygame, sys, random, time
- 
-# check for initializing errors
-check_errors = pygame.init()
-if check_errors[1] > 0:
-    print("(!) Had {0} initializing errors, exiting...".format(check_errors[1]))
-    sys.exit(-1)
-else:
-    print("(+) PyGame successfully initialized!")
- 
+pygame.init()
+
 # Play surface
 playSurface = pygame.display.set_mode((720, 460)) #game window size
 pygame.display.set_caption('Blacky Snake!')
