@@ -41,6 +41,7 @@ def gameOver():
     pygame.display.flip()
    
     time.sleep(4)
+    pygame.display.quit()
     pygame.quit() #pygame exit
     sys.exit() #console exit
    
@@ -73,7 +74,9 @@ while True:
                 changeto = 'DOWN'
             if event.key == pygame.K_ESCAPE:
                 pygame.event.post(pygame.event.Event(pygame.QUIT))
-                exit()
+                pygame.display.quit()
+                pygame.quit()
+                sys.exit()
  
     # validation of direction
     if changeto == 'RIGHT' and not direction == 'LEFT':
