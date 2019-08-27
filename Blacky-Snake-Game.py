@@ -59,6 +59,7 @@ def showScore(choice=1):
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            pygame.display.quit()
             pygame.quit()
             sys.exit()
         elif event.type == pygame.KEYDOWN:
@@ -72,6 +73,7 @@ while True:
                 changeto = 'DOWN'
             if event.key == pygame.K_ESCAPE:
                 pygame.event.post(pygame.event.Event(pygame.QUIT))
+                exit()
  
     # validation of direction
     if changeto == 'RIGHT' and not direction == 'LEFT':
