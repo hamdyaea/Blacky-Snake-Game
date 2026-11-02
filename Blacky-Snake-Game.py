@@ -1,138 +1,104 @@
-# Developer : Hamdy Abou El Anein
-import pygame, sys, random, time
+#!/usr/bin/env python3
+# Developer: Hamdy Abou El Anein
+# Contact: info@daylightlinux.ch
+# SPDX-License-Identifier: GPL-3.0-only
+"""Blacky Snake: testable grid game with optional Pygame frontend."""
+from __future__ import annotations
+import argparse
+from dataclasses import dataclass, field
+import random
 
-pygame.init()
+WIDTH, HEIGHT, CELL = 72, 46, 10
+DIRECTIONS = {"RIGHT": (1, 0), "LEFT": (-1, 0), "UP": (0, -1), "DOWN": (0, 1)}
+OPPOSITES = {"RIGHT": "LEFT", "LEFT": "RIGHT", "UP": "DOWN", "DOWN": "UP"}
 
-# Play surface
-playSurface = pygame.display.set_mode((720, 460))  # game window size
-pygame.display.set_caption("Blacky Snake!")
+@dataclass
+class Snake:
+    body: list[tuple[int, int]] = field(default_factory=lambda: [(10, 5), (9, 5), (8, 5)])
+    direction: str = "RIGHT"
+    food: tuple[int, int] | None = None
+    score: int = 0
+    game_over: bool = False
 
-# Colors
-red = pygame.Color(255, 0, 0)  # gameover
-green = pygame.Color(255, 205, 148)  # snake
-black = pygame.Color(0, 0, 0)  # score
-white = pygame.Color(255, 255, 255)  # background
-brown = pygame.Color(165, 42, 42)  # food
+    def __post_init__(self):
+        if self.food is None:
+            self.spawn_food()
 
-# FPS controller
-fpsController = pygame.time.Clock()
+    def spawn_food(self, rng=None) -> None:
+        rng = rng or random
+        occupied = set(self.body)
+        free = [(x, y) for x in range(WIDTH) for y in range(HEIGHT) if (x, y) not in occupied]
+        self.food = rng.choice(free) if free else None
+        if self.food is None:
+            self.game_over = True
 
-# Important varibles
-snakePos = [100, 50]
-snakeBody = [[100, 50], [90, 50], [80, 50]]
+    def turn(self, direction: str) -> None:
+        if direction not in DIRECTIONS:
+            raise ValueError("Invalid direction")
+        if direction != OPPOSITES[self.direction]:
+            self.direction = direction
 
-foodPos = [random.randrange(1, 72) * 10, random.randrange(1, 46) * 10]
-foodSpawn = True
+    def step(self, rng=None) -> None:
+        if self.game_over:
+            return
+        dx, dy = DIRECTIONS[self.direction]
+        head = (self.body[0][0] + dx, self.body[0][1] + dy)
+        growing = head == self.food
+        collision_body = self.body if growing else self.body[:-1]
+        if not (0 <= head[0] < WIDTH and 0 <= head[1] < HEIGHT) or head in collision_body:
+            self.game_over = True
+            return
+        self.body.insert(0, head)
+        if growing:
+            self.score += 1
+            self.spawn_food(rng)
+        else:
+            self.body.pop()
 
-direction = "RIGHT"
-changeto = direction
+def play(fps: int = 12) -> None:
+    import pygame
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH * CELL, HEIGHT * CELL))
+    pygame.display.set_caption("Blacky Snake")
+    clock = pygame.time.Clock()
+    font = pygame.font.SysFont("sans", 26)
+    snake = Snake()
+    keys = {pygame.K_RIGHT: "RIGHT", pygame.K_LEFT: "LEFT", pygame.K_UP: "UP",
+            pygame.K_DOWN: "DOWN", pygame.K_w: "UP", pygame.K_a: "LEFT",
+            pygame.K_s: "DOWN", pygame.K_d: "RIGHT"}
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    running = False
+                elif event.key == pygame.K_r and snake.game_over:
+                    snake = Snake()
+                elif event.key in keys:
+                    snake.turn(keys[event.key])
+        if not snake.game_over:
+            snake.step()
+        screen.fill((245, 245, 245))
+        for x, y in snake.body:
+            pygame.draw.rect(screen, (45, 130, 90), (x * CELL, y * CELL, CELL, CELL))
+        if snake.food:
+            pygame.draw.rect(screen, (185, 60, 60), (snake.food[0] * CELL, snake.food[1] * CELL, CELL, CELL))
+        screen.blit(font.render(f"Score: {snake.score}", True, (0, 0, 0)), (8, 8))
+        if snake.game_over:
+            screen.blit(font.render("Game over — press R to restart or Esc to quit", True, (180, 0, 0)), (80, 100))
+        pygame.display.flip()
+        clock.tick(fps)
+    pygame.quit()
 
-score = 0
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--fps", type=int, default=12)
+    args = parser.parse_args()
+    if not 1 <= args.fps <= 60:
+        parser.error("--fps must be between 1 and 60")
+    play(args.fps)
 
-# Game over function
-def gameOver():
-    myFont = pygame.font.SysFont("arial", 72)
-    GOsurf = myFont.render("Game over!", True, red)
-    GOrect = GOsurf.get_rect()
-    GOrect.midtop = (360, 15)
-    playSurface.blit(GOsurf, GOrect)
-    showScore(0)
-    pygame.display.flip()
-
-    time.sleep(4)
-    pygame.display.quit()
-    pygame.quit()  # pygame exit
-    sys.exit()  # console exit
-
-
-def showScore(choice=1):
-    sFont = pygame.font.SysFont("arial", 24)
-    Ssurf = sFont.render("Score : {0}".format(score), True, black)
-    Srect = Ssurf.get_rect()
-    if choice == 1:
-        Srect.midtop = (80, 10)
-    else:
-        Srect.midtop = (360, 120)
-    playSurface.blit(Ssurf, Srect)
-
-
-# Main Logic of the game
-while True:
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.display.quit()
-            pygame.quit()
-            sys.exit()
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_RIGHT or event.key == ord("d"):
-                changeto = "RIGHT"
-            if event.key == pygame.K_LEFT or event.key == ord("a"):
-                changeto = "LEFT"
-            if event.key == pygame.K_UP or event.key == ord("w"):
-                changeto = "UP"
-            if event.key == pygame.K_DOWN or event.key == ord("s"):
-                changeto = "DOWN"
-            if event.key == pygame.K_ESCAPE:
-                pygame.event.post(pygame.event.Event(pygame.QUIT))
-                pygame.display.quit()
-                pygame.quit()
-                sys.exit()
-
-    # validation of direction
-    if changeto == "RIGHT" and not direction == "LEFT":
-        direction = "RIGHT"
-    if changeto == "LEFT" and not direction == "RIGHT":
-        direction = "LEFT"
-    if changeto == "UP" and not direction == "DOWN":
-        direction = "UP"
-    if changeto == "DOWN" and not direction == "UP":
-        direction = "DOWN"
-
-    # Update snake position [x,y]
-    if direction == "RIGHT":
-        snakePos[0] += 10
-    if direction == "LEFT":
-        snakePos[0] -= 10
-    if direction == "UP":
-        snakePos[1] -= 10
-    if direction == "DOWN":
-        snakePos[1] += 10
-
-    # Snake body mechanism
-    snakeBody.insert(0, list(snakePos))
-    if snakePos[0] == foodPos[0] and snakePos[1] == foodPos[1]:
-        score += 1
-        foodSpawn = False
-    else:
-        snakeBody.pop()
-
-    # Food Spawn
-    if foodSpawn == False:
-        foodPos = [random.randrange(1, 72) * 10, random.randrange(1, 46) * 10]
-    foodSpawn = True
-
-    # Background
-    playSurface.fill(white)
-
-    # Draw Snake
-    for pos in snakeBody:
-        pygame.draw.rect(playSurface, green, pygame.Rect(pos[0], pos[1], 10, 10))
-
-    pygame.draw.rect(playSurface, brown, pygame.Rect(foodPos[0], foodPos[1], 10, 10))
-
-    # Bound
-    if snakePos[0] > 710 or snakePos[0] < 0:
-        gameOver()
-    if snakePos[1] > 450 or snakePos[1] < 0:
-        gameOver()
-
-    # Self hit
-    for block in snakeBody[1:]:
-        if snakePos[0] == block[0] and snakePos[1] == block[1]:
-            gameOver()
-
-    # common stuff
-    showScore()
-    pygame.display.flip()
-
-    fpsController.tick(20)  # snake speed
+if __name__ == "__main__":
+    main()
